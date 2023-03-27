@@ -1,14 +1,16 @@
 import time
-from random import randint, sample
+import pyperclip
+import webbrowser
+import pyautogui as py
+import undetected_chromedriver
+
 from faker import Faker
 from string import ascii_letters
-from selenium import webdriver
-from selenium.webdriver.common.by import By
+from random import randint, sample
+
 from phone_number_getter import RentPhoneForSMS
-from database_handle import DataBase
-from settings import social_services_db
-import undetected_chromedriver
-from requests_html import HTMLSession
+
+from selenium.webdriver.common.by import By
 
 
 class IDGenerator:
@@ -45,6 +47,7 @@ class YandexRegistrator:
     def register(self) -> None:
         """ Function which registers new fake account """
 
+
         print(self._firstname, self._lastname, self._username, self._password, self._phone)
 
         # Go to main registration page
@@ -60,42 +63,41 @@ class YandexRegistrator:
         # Fills firstname
         firstname = self.driver.find_element(By.ID, 'firstname')
         firstname.send_keys(self._firstname)
-        time.sleep(5)
+        time.sleep(2)
 
         # Fills lastname
         lastname = self.driver.find_element(By.ID, 'lastname')
         lastname.send_keys(self._lastname)
-        time.sleep(5)
+        time.sleep(2)
 
         # Fills username
         username = self.driver.find_element(By.ID, 'login')
         username.send_keys(self._username)
-        time.sleep(5)
+        time.sleep(2)
 
         # Fills password
         password = self.driver.find_element(By.ID, 'password')
         password.send_keys(self._password)
-        time.sleep(5)
+        time.sleep(2)
 
         # Fills password confirmation
         password_confirm = self.driver.find_element(By.ID, 'password_confirm')
         password_confirm.send_keys(self._password)
-        time.sleep(5)
+        time.sleep(2)
 
         # Fills phone number
         phone = self.driver.find_element(By.ID, 'phone')
         phone.send_keys(self._phone)
-        time.sleep(5)
+        time.sleep(2)
 
         # Retrieving phone code
         get_code = self.driver.find_element(By.XPATH, "//button[@data-t='button:pseudo']")
         get_code.click()
-        time.sleep(10)
+        time.sleep(5)
 
         # Catching code?
         code = self.rent.get_phone_code(self._tzid)
-        print(code)
-        time.sleep(10)
+        time.sleep(5)
 
         # Inserting phone code into field
         phoneCode = self.driver.find_element(By.ID, 'phoneCode')
@@ -110,220 +112,120 @@ class YandexRegistrator:
         # Applies registration
         register = self.driver.find_element(By.XPATH, "/html/body/div/div/div[2]/div/main/div/div/div/form/div[4]/span/button")
         register.click()
-        time.sleep(5)
+        time.sleep(2)
 
         # Applies registration
         register = self.driver.find_element(By.XPATH, "/html/body/div/div/div[2]/div/main/div/div/div/form/div[4]/div/div[2]/div/button")
         register.click()
-        time.sleep(5)
-
-        # /html/body/div/div/div[2]/div/main/div/div/div/form/div[4]/div/div[2]/div/button
-        # //button[@class='Button2 Button2_size_m Button2_view_action Button2_width_max']
+        time.sleep(2)
 
 
 class YandexToken:
     """ Retrieves Yandex Disk token from account """
 
-    # Yandex Polygon URL
-    yandex_polygon_url = 'https://yandex.ru/dev/disk/poligon/'
+    firefox_path = '/snap/bin/firefox'
 
-    def __init__(self, driver: undetected_chromedriver, username: str, password: str):
-        self.driver = driver
-        self._username = username
-        self._password = password
+    def __init__(self, login: str, password: str, browser: webbrowser) -> None:
+        self.login = login
+        self.password = password
+        self.browser = browser
+        self.token = None
 
-    def get_yandex_token(self) -> str:
-        # Go to Yandex Polygon
-        self.driver.get(self.yandex_polygon_url)
-        time.sleep(5)
+        # Initialize browser settings
+        self.browser.register('firefox', None, webbrowser.BackgroundBrowser(self.firefox_path))
 
-        # Whether Yandex hides some parts of DOM in iframe
-        # lets switch it
-        self.driver.switch_to.frame('2a43cc95-a6f3-4483-a5e9-cd92847fe725')
+    def get_yandex_token(self):
+        # Opens yandex polygon
+        self.browser.get('firefox').open('https://yandex.ru/dev/disk/poligon')
+        time.sleep(3)
 
-        # Clicks a 'button' (actually 'a' tag) which gives us auth token
-        get_auth_token = self.driver.find_element(By.XPATH, '/html/body/div/section/div[1]/div/a')
-        get_auth_token_link = get_auth_token.get_attribute('href')
-        self.driver.get(get_auth_token_link)
-        time.sleep(5)
+        # Clicks sign-in button
+        py.click(x=1852, y=155)
+        time.sleep(1)
 
-        # Inserts username in field
-        username = self.driver.find_element(By.XPATH, "//input[@data-t='field:input-login']")
-        username.send_keys(self._username)
-        time.sleep(5)
+        # Move mouse into login field and write down login
+        py.click(x=944, y=558)
+        time.sleep(3)
+        py.write(self.login)
+        time.sleep(3)
+        py.press('enter')
+        time.sleep(3)
+        py.click(x=983, y=619)
+        time.sleep(3)
+        py.write(self.password)
+        py.press('enter')
+        time.sleep(3)
 
-        # Clicks a sign-in button
-        sign_in = self.driver.find_element(By.XPATH, "//button[@id='passp:sign-in']")
-        sign_in.click()
-        time.sleep(5)
-
-        # Inserts password in field
-        password = self.driver.find_element(By.XPATH, "//input[@id='passp-field-passwd']")
-        password.send_keys(self._password)
-        time.sleep(5)
-
-        # Clicks a sign-in button
-        sign_in = self.driver.find_element(By.XPATH, "//button[@id='passp:sign-in']")
-        sign_in.click()
-        time.sleep(5)
-
+        # For new accounts skip button is required
         try:
-            # Click skip info
-            skip = self.driver.find_element(By.XPATH, "//button[@class='Button2 Button2_size_l Button2_view_pseudo Button2_width_max']")
-            skip.click()
-            time.sleep(5)
+            py.click(x=999, y=792)
         except:
             pass
 
-        time.sleep(15)
-        # Again switches iframe
-        self.driver.switch_to.frame('2a43cc95-a6f3-4483-a5e9-cd92847fe725')
+        # Go to yandex disk
+        py.click(x=1873, y=143)
+        time.sleep(3)
+        py.click(x=1737, y=469)
+        time.sleep(10)
 
-        # elem = self.driver.execute_script("return document.getElementsByClassName('Button2 Button2_view_action Button2_size_m top__button')")
-        # elem[0].click()
-
-        get_auth_token = self.driver.find_element(By.XPATH, '/html/body/div/section/div[1]/div/a')
-        link = get_auth_token.get_attribute('href')
-        print(link)
-        session = HTMLSession()
-        r = session.get(link)
-        r.html.render()
-        print(r)
-        print(r.html.text)
-
-        self.driver.get(link)
-        time.sleep(5)
-        # https://yandex.ru/dev/disk/poligon/#error=unauthorized_client&error_description=%D0%97%D0%B0%D0%BF%D1%80%D0%B5%D1%89%D0%B5%D0%BD%D0%BE%20%D0%BF%D0%BE%D0%BB%D1%83%D1%87%D0%B0%D1%82%D1%8C%20%D1%82%D0%BE%D0%BA%D0%B5%D0%BD%D1%8B%20%D1%81%20%D0%B4%D0%B0%D0%BD%D0%BD%D1%8B%D0%BC%D0%B8%20%D0%BF%D1%80%D0%B0%D0%B2%D0%B0%D0%BC%D0%B8%20%D0%B4%D0%BB%D1%8F%20%D0%B4%D0%B0%D0%BD%D0%BD%D0%BE%D0%B3%D0%BE%20%D0%BF%D1%80%D0%B8%D0%BB%D0%BE%D0%B6%D0%B5%D0%BD%D0%B8%D1%8F
-        # Retrieves auth token
-        input_with_token = self.driver.find_element(By.XPATH, '//input[@class="Textinput-Control"]')
-        token = input_with_token.get_attribute('value')
+        # Create empty folder
+        py.click(x=802, y=614, button='right')
+        time.sleep(3)
+        py.click(x=899, y=645)
+        time.sleep(3)
+        py.click(x=1138, y=670)
         time.sleep(5)
 
-        return token
+        self.browser.open('https://yandex.ru/dev/disk/poligon')
 
+        # Clicks button "retrieve new token"
+        time.sleep(5)
+        py.click(x=1357, y=655)
+        time.sleep(3)
 
-g = YandexToken(driver=undetected_chromedriver.Chrome(), username='alan.harris.5775.vSlP', password='cF9Jijs)_T')
-print(g.get_yandex_token())
+        # Clicks a button "login with account"
+        try:
+            py.click(x=989, y=607)
+        except:
+            pass
+        time.sleep(3)
 
-# new = YandexRegistrator(undetected_chromedriver.Chrome())
-# new.register()
+        # Copies and saves token into variable
+        pyperclip.copy("")
+        py.tripleClick(x=793, y=650)
+        time.sleep(3)
+        py.hotkey('ctrl', 'c')
+        time.sleep(3)
+        self.token = pyperclip.paste()
+        time.sleep(3)
 
+        # Clicks the avatar
+        py.click(x=1873, y=152)
+        time.sleep(3)
 
+        # Clicks logout button
+        py.click(x=1689, y=747)
+        time.sleep(3)
 
-# y = YandexRegistrator(webdriver.Chrome())
-# y.register()
-# token = y.get_yandex_token()
-# collection_to_send = [y._firstname, y._lastname, y._username, y._password, y._phone, token]
-# d = DataBase('social_services', social_services_db['host'], social_services_db['user'], social_services_db['password'])
-# d.insert_into_yandex_tokens_table('yandex_tokens', collection_to_send)
+        # Clicks sign in button (this is necessary to reset credentials)
+        py.click(x=1846, y=147)
+        time.sleep(3)
 
+        # Clicks an arrow located near account
+        py.click(x=1128, y=520)
+        time.sleep(3)
 
+        # Clicks ellipsis near account
+        py.click(x=1144, y=640)
+        time.sleep(3)
 
+        # Clicks delete account button
+        py.click(x=1139, y=705)
+        time.sleep(3)
 
+        # Clicks exit button
+        py.click(x=1901, y=49)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# driver = webdriver.Chrome()
-# registration_url = 'https://passport.yandex.ru'
-#
-# driver.get(registration_url)
-#
-# create_id_button = driver.find_element(By.XPATH, "//a[@id='passp:exp-register']")
-# link_to_registration = create_id_button.get_attribute('href')
-# time.sleep(5)
-# driver.get(link_to_registration)
-#
-# time.sleep(5)
-# firstname = driver.find_element(By.ID, 'firstname')
-# firstname.send_keys(fn)
-# time.sleep(5)
-# lastname = driver.find_element(By.ID, 'lastname')
-# lastname.send_keys(ln)
-# time.sleep(5)
-# username = driver.find_element(By.ID, 'login')
-# username.send_keys(un)
-# time.sleep(5)
-# password = driver.find_element(By.ID, 'password')
-# password.send_keys(pw)
-# time.sleep(5)
-# password_confirm = driver.find_element(By.ID, 'password_confirm')
-# password_confirm.send_keys(pw)
-# time.sleep(5)
-# phone = driver.find_element(By.ID, 'phone')
-# phone.send_keys('+77073183847')
-# time.sleep(5)
-# get_code = driver.find_element(By.XPATH, "//button[@data-t='button:pseudo']")
-# get_code.click()
-# time.sleep(5)
-# phoneCode = driver.find_element(By.ID, 'phoneCode')
-# phoneCode.send_keys('342784')
-# time.sleep(5)
-# apply = driver.find_element(By.XPATH, "//button[@data-t='button:pseudo']")
-# apply.click()
-# time.sleep(5)
-# register = driver.find_element(By.XPATH, "//button[@data-t='button:action']")
-# register.click()
-# time.sleep(5)
-# apply_rules = driver.find_element(By.XPATH, "//button[@type='button']")
-# apply_rules.click()
-# time.sleep(1000)
-# skip = driver.find_element(By.XPATH, "//a[@data-t='button:pseudo']")
-# skip_url = skip.get_attribute('href')
-# driver.get(skip_url)
-# time.sleep(5)
-
-
-# Login for tests
-# driver.get('https://passport.yandex.kz/')
-# time.sleep(5)
-
-# driver.get('https://yandex.ru/dev/disk/poligon/')
-# time.sleep(5)
-# driver.switch_to.frame('2a43cc95-a6f3-4483-a5e9-cd92847fe725')
-# get_auth_token = driver.find_element(By.XPATH, '/html/body/div/section/div[1]/div/a')
-# print(get_auth_token)
-# time.sleep(5)
-# get_auth_token_link = get_auth_token.get_attribute('href')
-# print(get_auth_token_link)
-# time.sleep(5)
-# driver.get(get_auth_token_link)
-# username = driver.find_element(By.XPATH, "//input[@data-t='field:input-login']")
-# username.send_keys('irina.rami999')
-# time.sleep(5)
-# sign_in = driver.find_element(By.XPATH, "//button[@id='passp:sign-in']")
-# sign_in.click()
-# time.sleep(5)
-# password = driver.find_element(By.XPATH, "//input[@id='passp-field-passwd']")
-# password.send_keys('QweQwe!23)')
-# time.sleep(5)
-# sign_in = driver.find_element(By.XPATH, "//button[@id='passp:sign-in']")
-# sign_in.click()
-# time.sleep(10)
-# driver.switch_to.frame('2a43cc95-a6f3-4483-a5e9-cd92847fe725')
-# input_with_token = driver.find_element(By.XPATH, '/html/body/div/section/div[1]/span/input')
-# print(input_with_token.text)
-# token = input_with_token.get_attribute('value')
-# print(token)
-# time.sleep(5)
+# y = YandexToken('amber.franco.7288.vaFs', '*J3I8@0j#J', webbrowser)
+# y.get_yandex_token()
+# print(y.token)
