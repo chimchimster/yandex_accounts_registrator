@@ -16,6 +16,6 @@ class RentPhoneForSMS:
     def get_phone_code(self, tzid: int):
         """ Waits and returns code which has been sent to phone """
 
-        code = self.service.wait_code(tzid, timeout=60)
+        code = self.service.wait_code(tzid, timeout=10)
 
         return re.sub(r'[0-9]]', '', code)
