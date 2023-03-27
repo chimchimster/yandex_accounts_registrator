@@ -1,15 +1,15 @@
 import time
-
 import settings
 import webbrowser
+
+from logs.conf import Logger
+
 from selenium import webdriver
+from selenium.webdriver.common.proxy import Proxy, ProxyType
 
 from database_handle import DataBase
 from yandex_registrator import YandexRegistrator, YandexToken
 
-from selenium.webdriver.common.proxy import Proxy, ProxyType
-
-from logs.conf import Logger
 
 log = Logger()
 log.configurate()
@@ -22,8 +22,11 @@ def registrate_new_account() -> [list, None]:
     # Initiate collection which must be sent to DataBase
     collection_to_db = []
 
-    db = DataBase('social_services', settings.social_services_db['host'], settings.social_services_db['user'],
-                  settings.social_services_db['password'])
+    db = DataBase('social_services',
+                  settings.social_services_db['host'],
+                  settings.social_services_db['user'],
+                  settings.social_services_db['password']
+                  )
 
     # Setting proxies into webdriver Chrome
     prox = Proxy()
@@ -39,12 +42,28 @@ def registrate_new_account() -> [list, None]:
     prox.add_to_capabilities(capabilities)
 
     try:
-        yandex_account = YandexRegistrator(webdriver.Chrome(desired_capabilities=capabilities))
-        collection_to_db = [1, 4900, yandex_account._firstname, yandex_account._lastname, yandex_account._username,
-                            yandex_account._password, yandex_account._phone]
+        yandex_account = YandexRegistrator(
+            webdriver.Chrome(
+                desired_capabilities=capabilities
+            )
+        )
+
+        collection_to_db = [1,
+                            4900,
+                            yandex_account._firstname,
+                            yandex_account._lastname,
+                            yandex_account._username,
+                            yandex_account._password,
+                            yandex_account._phone
+                            ]
+
         yandex_account.register()
         time.sleep(5)
-        yandex_account_token = YandexToken(yandex_account._username, yandex_account._password, webbrowser)
+        yandex_account_token = YandexToken(yandex_account._username,
+                                           yandex_account._password,
+                                           webbrowser
+                                           )
+
         yandex_account_token.get_yandex_token()
         collection_to_db.append(yandex_account_token.token)
     except Exception as e:
@@ -59,8 +78,12 @@ def registrate_new_account() -> [list, None]:
 def migrate() -> None:
     """ Migration to DataBase """
 
-    db = DataBase('social_services', settings.social_services_db['host'], settings.social_services_db['user'],
-                  settings.social_services_db['password'])
+    db = DataBase('social_services',
+                  settings.social_services_db['host'],
+                  settings.social_services_db['user'],
+                  settings.social_services_db['password']
+                  )
+
     collection = registrate_new_account()
 
     # If something inside collection
